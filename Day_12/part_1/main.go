@@ -1,38 +1,61 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 var chann = make(chan int)
 
 func main() {
-	file, _ := os.Open("input2.txt")
-	defer file.Close()
+	fileBytes, _ := os.ReadFile("./input.txt")
+	fileContents := string(fileBytes)
 
-	scanner := bufio.NewScanner(file)
-	totalPossibilities := 0
-	for scanner.Scan() {
-		go resolveLine(scanner.Text())
-		totalPossibilities += <-chann
+	fileSlice := strings.Split(fileContents, "\n")
+	totalPossibilites := 0
+
+	wg := new(sync.WaitGroup)
+
+	for _, line := range fileSlice {
+		wg.Add(1)
+		go func(line string) {
+			defer wg.Done()
+			resolveLine(line)
+		}(line)
 	}
-	fmt.Println(totalPossibilities)
+
+	totalPossibilites += <-chann
+	wg.Wait()
+
+	fmt.Println(totalPossibilites)
 }
 
 func resolveLine(line string) {
 	springInfo := strings.Split(line, " ")
 	springHintString := strings.Split(springInfo[1], ",")
-	springHint := make([]int, len(springHintString))
-	for i := 0; i < len(springHint); i++ {
-		springHint[i], _ = strconv.Atoi(springHintString[i])
+	fmt.Println(springHintString)
+	springHint := make([]int, 0)
+	for i := 0; i < len(springHintString); i++ {
+		hint, _ := strconv.Atoi(springHintString[i])
+		springHint = append(springHint, hint)
+	}
+
+	originalHint := make([]int, len(springHint))
+	copy(originalHint, springHint)
+	for i := 0; i < 5; i++ {
+		springHint = append(springHint, originalHint...)
 	}
 
 	springs := strings.Split(springInfo[0], "")
-	fmt.Println("Current Line:", springs)
+	originalSprings := make([]string, len(springs))
+	copy(originalSprings, springs)
+	for i := 0; i < 5; i++ {
+		springs = append(springs, append([]string{"?"}, originalSprings...)...)
+	}
+	fmt.Println("Current Line:", springs, "Hints:", springHint)
 	chann <- getPossibilities(springs, springHint)
 }
 
@@ -42,6 +65,10 @@ func getPossibilities(springLine []string, springHints []int) int {
 
 	for _, index := range possibleIndexes {
 		springLine[index] = "."
+	}
+
+	if lineMatchesHints(springLine, springHints) {
+		possiblePermutations++
 	}
 
 	for !allIndexesAreChar(springLine, possibleIndexes, "#") {
@@ -111,6 +138,6 @@ func lineMatchesHints(line []string, hints []int) bool {
 	} else {
 		return false
 	}
-	fmt.Println("        Line:", line, "Hints:", hints, "Permutation:", splitLine)
+	// fmt.Println("        Line:", line, "Hints:", hints, "Permutation:", splitLine)
 	return true
 }
